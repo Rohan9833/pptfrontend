@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-const API_BASE_URL = "/api";
+const API_BASE_URL = (import.meta.env.VITE_PRESENTATION_API_URL || "https://digi-ppt.digilateral.com").replace(/\/$/, "");
 
 const ProductDropdown = ({ value, onChange }) => {
   const [products, setProducts] = useState([]);
@@ -17,7 +17,7 @@ const ProductDropdown = ({ value, onChange }) => {
         setLoading(true);
         setError("");
 
-        const response = await fetch(API_BASE_URL);
+        const response = await fetch(`${API_BASE_URL}/api`);
 
         const result = await response.json();
 
