@@ -98,25 +98,29 @@ const CreatePresentationForm = () => {
 
   const stopAlignAutoScroll = () => {
     if (autoScrollIntervalRef.current) {
-      clearInterval(autoScrollIntervalRef.current);
+      clearInterval(autoScrollIntervalRef.current.id);
       autoScrollIntervalRef.current = null;
     }
   };
 
   const startAlignAutoScroll = (direction, speed) => {
-    if (autoScrollIntervalRef.current?.direction === direction) return;
+    if (autoScrollIntervalRef.current?.direction === direction) {
+      autoScrollIntervalRef.current.speed = speed;
+      return;
+    }
     stopAlignAutoScroll();
 
-    const interval = setInterval(() => {
+    const scrollState = { direction, speed: speed };
+    scrollState.id = setInterval(() => {
       const container = alignScrollRef.current;
       if (!container || draggedSlideRef.current == null) {
         stopAlignAutoScroll();
         return;
       }
-      container.scrollTop += direction * speed;
+      container.scrollTop += scrollState.direction * scrollState.speed;
     }, 16);
 
-    autoScrollIntervalRef.current = interval;
+    autoScrollIntervalRef.current = scrollState;
   };
 
   /* ==========================================
