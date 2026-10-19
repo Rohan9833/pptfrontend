@@ -74,15 +74,15 @@ const SECTION_SLIDES = [
     label: "CalendarME",
     slideIds: [105, 127, 128],
   },
-  {
-    key: "leaflets",
-    label: "Leaflets",
-    slideIds: [108],
-  },
+  // {
+  //   key: "leaflets",
+  //   label: "Leaflets",
+  //   slideIds: [108],
+  // },
   {
     key: "comic-book",
     label: "Comic Book",
-    slideIds: [125, 126, 109],
+    slideIds: [125, 126],
   },
   {
     key: "in-clinic-engagement",
