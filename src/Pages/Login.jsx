@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { LoaderCircle } from "lucide-react";
 
+const API_BASE_URL = (import.meta.env.VITE_PRESENTATION_API_URL || "https://digi-ppt.digilateral.com").replace(/\/$/, "");
+
 const Login = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -17,7 +19,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/auth/login", {
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
