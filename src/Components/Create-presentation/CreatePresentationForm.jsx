@@ -93,6 +93,7 @@ const CreatePresentationForm = () => {
   const [removeMode, setRemoveMode] = useState(false);
   const [slidesMarkedForRemoval, setSlidesMarkedForRemoval] = useState([]);
   const draggedSlideRef = useRef(null);
+  const alignScrollRef = useRef(null);
 
   /* ==========================================
      SUBMIT STATE
@@ -1151,7 +1152,26 @@ return `https://digilateral.com${cleanUrl}`;
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+            <div
+              ref={alignScrollRef}
+              className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6"
+              onDragOver={(event) => {
+                if (removeMode || draggedSlideRef.current == null || !alignScrollRef.current) return;
+
+                // Native HTML drag-and-drop does not auto-scroll reliably.
+                // Scroll the thumbnail list when the pointer reaches its top/bottom edge.
+                const container = alignScrollRef.current;
+                const bounds = container.getBoundingClientRect();
+                const edgeSize = 76;
+                const scrollStep = 18;
+
+                if (event.clientY < bounds.top + edgeSize) {
+                  container.scrollTop -= scrollStep;
+                } else if (event.clientY > bounds.bottom - edgeSize) {
+                  container.scrollTop += scrollStep;
+                }
+              }}
+            >
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
                 {slideOrder.map((slide, index) => {
                   const slideKey = `${slide.id}-${slide.sectionKey}`;
