@@ -88,6 +88,7 @@ const CreatePresentationForm = () => {
 
   const [showAlignPopup, setShowAlignPopup] = useState(false);
   const [slideOrder, setSlideOrder] = useState([]);
+  const [originalSlideOrder, setOriginalSlideOrder] = useState([]);
   const [removeMode, setRemoveMode] = useState(false);
   const [slidesMarkedForRemoval, setSlidesMarkedForRemoval] = useState([]);
   const draggedSlideRef = useRef(null);
@@ -350,6 +351,7 @@ url: `https://digilateral.com${data.url}`
     }
 
     setSlideOrder(currentOrder);
+    setOriginalSlideOrder(currentOrder);
     setShowAlignPopup(true);
   };
 
@@ -399,6 +401,20 @@ url: `https://digilateral.com${data.url}`
     );
     setSlidesMarkedForRemoval([]);
     setRemoveMode(false);
+  };
+
+  const resetSlideOrder = () => {
+    const originalPositions = new Map(
+      originalSlideOrder.map((slide, index) => [`${slide.id}-${slide.sectionKey}`, index])
+    );
+    setSlideOrder((current) =>
+      [...current]
+        .sort((a, b) =>
+          (originalPositions.get(`${a.id}-${a.sectionKey}`) ?? Infinity) -
+          (originalPositions.get(`${b.id}-${b.sectionKey}`) ?? Infinity)
+        )
+        .map((slide, index) => ({ ...slide, position: index + 1 }))
+    );
   };
 
   /* ==========================================
@@ -1074,7 +1090,7 @@ return `https://digilateral.com${cleanUrl}`;
                     </button>
                     <button
                       type="button"
-                      onClick={() => setSlideOrder((current) => [...current].sort((a, b) => a.position - b.position).map((slide, index) => ({ ...slide, position: index + 1 }))}
+                      onClick={resetSlideOrder}
                       className="rounded-lg px-3 py-2 text-xs font-semibold text-[#f47a32] transition hover:bg-[#fff3eb]"
                     >
                       Reset order
