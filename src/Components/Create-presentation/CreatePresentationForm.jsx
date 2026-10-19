@@ -375,18 +375,16 @@ url: `https://digilateral.com${data.url}`
     setShowAlignPopup(true);
   };
 
-  // Drop onto a slide to place the dragged slide immediately BEFORE it.
-  const reorderSlides = (fromIndex, toIndex) => {
-    if (fromIndex == null || toIndex == null || fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return;
+  // Insert the dragged slide at the requested position in the final list.
+  const reorderSlides = (fromIndex, insertIndex) => {
+    if (fromIndex == null || insertIndex == null || fromIndex === insertIndex || fromIndex < 0 || insertIndex < 0) return;
 
     setSlideOrder((current) => {
-      if (fromIndex >= current.length || toIndex >= current.length) return current;
+      if (fromIndex >= current.length || insertIndex > current.length) return current;
       const next = [...current];
       const [movedSlide] = next.splice(fromIndex, 1);
-
-      // Removing an earlier item shifts the target one position left.
-      const insertIndex = fromIndex < toIndex ? toIndex - 1 : toIndex;
-      next.splice(insertIndex, 0, movedSlide);
+      const adjustedIndex = fromIndex < insertIndex ? insertIndex - 1 : insertIndex;
+      next.splice(adjustedIndex, 0, movedSlide);
 
       return next.map((slide, index) => ({ ...slide, position: index + 1 }));
     });
@@ -406,7 +404,13 @@ url: `https://digilateral.com${data.url}`
     event.preventDefault();
     const storedIndex = event.dataTransfer.getData("text/plain");
     const fromIndex = draggedSlideRef.current ?? Number(storedIndex);
-    reorderSlides(fromIndex, toIndex);
+
+    // Dropping on the left half inserts before the target; right half inserts after it.
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const dropOnRightHalf = event.clientX >= bounds.left + bounds.width / 2;
+    const insertIndex = dropOnRightHalf ? toIndex + 1 : toIndex;
+
+    reorderSlides(fromIndex, insertIndex);
     draggedSlideRef.current = null;
   };
 
