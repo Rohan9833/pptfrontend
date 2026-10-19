@@ -6,6 +6,8 @@ import PresentationTable from "../Components/presentation/PresentationTable";
 import PresentationSettingsModal from "../Components/presentation/PresentationSettingsModal";
 import Navbar from "../Components/Navbar";
 
+const API_BASE_URL = (import.meta.env.VITE_PRESENTATION_API_URL || "https://digi-ppt.digilateral.com").replace(/\/$/, "");
+
 const Presentations = () => {
   const [presentations, setPresentations] = useState([]);
 
@@ -26,7 +28,7 @@ const Presentations = () => {
         setLoading(true);
         setError("");
 
-        const response = await fetch("/api/presentations", {
+        const response = await fetch(`${API_BASE_URL}/api/presentations`, {
           method: "GET",
           credentials: "include",
           headers: {
