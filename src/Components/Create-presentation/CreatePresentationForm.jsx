@@ -1194,16 +1194,16 @@ return `https://digilateral.com${cleanUrl}`;
                 // users can move through long slide lists without precise positioning.
                 const container = alignScrollRef.current;
                 const bounds = container.getBoundingClientRect();
-                const edgeSize = Math.min(180, bounds.height * 0.3);
+                const edgeSize = Math.min(90, bounds.height * 0.16);
                 const topDistance = event.clientY - bounds.top;
                 const bottomDistance = bounds.bottom - event.clientY;
 
                 if (topDistance >= 0 && topDistance < edgeSize) {
                   const intensity = 1 - topDistance / edgeSize;
-                  startAlignAutoScroll(-1, Math.ceil(8 + intensity * 28));
+                  startAlignAutoScroll(-1, Math.ceil(4 + intensity * 16));
                 } else if (bottomDistance >= 0 && bottomDistance < edgeSize) {
                   const intensity = 1 - bottomDistance / edgeSize;
-                  startAlignAutoScroll(1, Math.ceil(8 + intensity * 28));
+                  startAlignAutoScroll(1, Math.ceil(4 + intensity * 16));
                 } else {
                   stopAlignAutoScroll();
                 }
