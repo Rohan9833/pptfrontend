@@ -88,6 +88,9 @@ const CreatePresentationForm = () => {
 
   const [showAlignPopup, setShowAlignPopup] = useState(false);
   const [slideOrder, setSlideOrder] = useState([]);
+  const [removeMode, setRemoveMode] = useState(false);
+  const [slidesMarkedForRemoval, setSlidesMarkedForRemoval] = useState([]);
+  const draggedSlideRef = useRef(null);
 
   /* ==========================================
      SUBMIT STATE
@@ -350,24 +353,52 @@ url: `https://digilateral.com${data.url}`
     setShowAlignPopup(true);
   };
 
-  const handlePositionChange = (slideId, sectionKey, value) => {
-    const requestedPosition = Number(value);
-    if (!Number.isInteger(requestedPosition) || requestedPosition < 1) return;
+  const reorderSlides = (fromIndex, toIndex) => {
+    if (fromIndex == null || toIndex == null || fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return;
 
     setSlideOrder((current) => {
-      const fromIndex = current.findIndex(
-        (slide) => slide.id === slideId && slide.sectionKey === sectionKey,
-      );
-      if (fromIndex < 0) return current;
-
-      const toIndex = Math.min(requestedPosition, current.length) - 1;
-      if (fromIndex === toIndex) return current;
-
+      if (fromIndex >= current.length || toIndex >= current.length) return current;
       const next = [...current];
-      const [moved] = next.splice(fromIndex, 1);
-      next.splice(toIndex, 0, moved);
+      const [movedSlide] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, movedSlide);
       return next.map((slide, index) => ({ ...slide, position: index + 1 }));
     });
+  };
+
+  const handleSlideDragStart = (event, index) => {
+    if (removeMode || submitting) {
+      event.preventDefault();
+      return;
+    }
+    draggedSlideRef.current = index;
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", String(index));
+  };
+
+  const handleSlideDrop = (event, toIndex) => {
+    event.preventDefault();
+    const storedIndex = event.dataTransfer.getData("text/plain");
+    const fromIndex = draggedSlideRef.current ?? Number(storedIndex);
+    reorderSlides(fromIndex, toIndex);
+    draggedSlideRef.current = null;
+  };
+
+  const toggleSlideMarkedForRemoval = (slide) => {
+    const key = `${slide.id}-${slide.sectionKey}`;
+    setSlidesMarkedForRemoval((current) =>
+      current.includes(key) ? current.filter((item) => item !== key) : [...current, key]
+    );
+  };
+
+  const removeMarkedSlides = () => {
+    if (slidesMarkedForRemoval.length === 0 || slidesMarkedForRemoval.length >= slideOrder.length) return;
+    setSlideOrder((current) =>
+      current
+        .filter((slide) => !slidesMarkedForRemoval.includes(`${slide.id}-${slide.sectionKey}`))
+        .map((slide, index) => ({ ...slide, position: index + 1 }))
+    );
+    setSlidesMarkedForRemoval([]);
+    setRemoveMode(false);
   };
 
   /* ==========================================
@@ -424,7 +455,7 @@ return `https://digilateral.com${cleanUrl}`;
 
         projectName: formData.projectName.trim(),
 
-        section: selectedSections,
+        section: slidesOverride ? Object.keys(slidesOverride) : selectedSections,
 
         slides: slidesOverride || selectedSlides,
 
@@ -983,13 +1014,17 @@ return `https://digilateral.com${cleanUrl}`;
       {showAlignPopup && (
         <div
           className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 px-3 py-4 backdrop-blur-[3px] sm:px-5"
-          onClick={() => setShowAlignPopup(false)}
+          onClick={() => {
+            setShowAlignPopup(false);
+            setRemoveMode(false);
+            setSlidesMarkedForRemoval([]);
+          }}
         >
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="align-slides-title"
-            className="flex max-h-[min(88vh,900px)] w-full max-w-[820px] flex-col overflow-hidden rounded-2xl border border-[#ececef] bg-white shadow-[0_24px_80px_rgba(0,0,0,0.22)]"
+            className="flex max-h-[min(90vh,960px)] w-full max-w-[1000px] flex-col overflow-hidden rounded-2xl border border-[#ececef] bg-white shadow-[0_24px_80px_rgba(0,0,0,0.22)]"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-[#ececef] px-5 py-4 sm:px-6">
@@ -999,16 +1034,18 @@ return `https://digilateral.com${cleanUrl}`;
                 </div>
                 <div>
                   <h2 id="align-slides-title" className="text-base font-semibold text-[#303238]">
-                    Align selected slides
+                    Arrange presentation slides
                   </h2>
-                  <p className="mt-0.5 text-xs text-[#777b82]">
-                    Choose the order in which slides should appear.
-                  </p>
+                  <p className="mt-0.5 text-xs text-[#777b82]">Drag and drop slides to change their order.</p>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => setShowAlignPopup(false)}
+                onClick={() => {
+                  setShowAlignPopup(false);
+                  setRemoveMode(false);
+                  setSlidesMarkedForRemoval([]);
+                }}
                 aria-label="Close slide alignment"
                 className="flex h-9 w-9 items-center justify-center rounded-lg text-[#777b82] transition hover:bg-[#f5f6f8] hover:text-[#303238]"
               >
@@ -1016,82 +1053,137 @@ return `https://digilateral.com${cleanUrl}`;
               </button>
             </div>
 
-            <div className="border-b border-[#ececef] bg-[#fafbfc] px-5 py-3 sm:px-6">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs text-[#55585d]">
-                  <span className="font-semibold text-[#303238]">{slideOrder.length} slides selected</span>
-                  <span className="mx-2 text-[#c5c8ce]">•</span>
-                  Use the position field to move a slide in the sequence.
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#ececef] bg-[#fafbfc] px-5 py-3 sm:px-6">
+              <div>
+                <p className="text-xs font-semibold text-[#303238]">{slideOrder.length} slides selected</p>
+                <p className="mt-1 text-[11px] text-[#777b82]">
+                  {removeMode ? "Select the slides you want to remove, then confirm." : "Drag any slide card to the position you want."}
                 </p>
-                <button
-                  type="button"
-                  onClick={() => setSlideOrder((current) => [...current].sort((a, b) => a.position - b.position).map((slide, index) => ({ ...slide, position: index + 1 })))}
-                  className="text-xs font-semibold text-[#f47a32] hover:underline"
-                >
-                  Reset order
-                </button>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {!removeMode ? (
+                  <>
+                    <button
+                      type="button"
+                      disabled={submitting || slideOrder.length < 2}
+                      onClick={() => { setRemoveMode(true); setSlidesMarkedForRemoval([]); }}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-[#e7b8b4] bg-white px-3 py-2 text-xs font-semibold text-[#b33a2e] transition hover:bg-[#fff4f3] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <X size={14} />
+                      Remove slides
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSlideOrder((current) => [...current].sort((a, b) => a.position - b.position).map((slide, index) => ({ ...slide, position: index + 1 }))}
+                      className="rounded-lg px-3 py-2 text-xs font-semibold text-[#f47a32] transition hover:bg-[#fff3eb]"
+                    >
+                      Reset order
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-xs text-[#777b82]">{slidesMarkedForRemoval.length} selected to remove</span>
+                    <button
+                      type="button"
+                      onClick={() => { setRemoveMode(false); setSlidesMarkedForRemoval([]); }}
+                      className="rounded-lg border border-[#d5d7db] bg-white px-3 py-2 text-xs font-semibold text-[#55585d] hover:bg-[#f5f6f8]"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={submitting || slidesMarkedForRemoval.length === 0 || slidesMarkedForRemoval.length >= slideOrder.length}
+                      onClick={removeMarkedSlides}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-[#b33a2e] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#982f25] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <X size={14} />
+                      Remove selected
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
-              <div className="space-y-2">
-                {slideOrder.map((slide, index) => (
-                  <div
-                    key={String(slide.id) + '-' + slide.sectionKey}
-                    className="flex items-center gap-3 rounded-xl border border-[#e7e8eb] bg-white p-3 transition hover:border-[#f4c3a3] sm:gap-4 sm:p-4"
-                  >
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#f5f6f8] text-[#92969e]">
-                      <GripVertical size={18} />
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                {slideOrder.map((slide, index) => {
+                  const slideKey = `${slide.id}-${slide.sectionKey}`;
+                  const markedForRemoval = slidesMarkedForRemoval.includes(slideKey);
+                  return (
+                    <div
+                      key={slideKey}
+                      draggable={!submitting && !removeMode}
+                      onDragStart={(event) => handleSlideDragStart(event, index)}
+                      onDragOver={(event) => {
+                        if (!removeMode) {
+                          event.preventDefault();
+                          event.dataTransfer.dropEffect = "move";
+                        }
+                      }}
+                      onDrop={(event) => { if (!removeMode) handleSlideDrop(event, index); }}
+                      onDragEnd={() => { draggedSlideRef.current = null; }}
+                      className={`group relative overflow-hidden rounded-xl border bg-white transition
+                        ${markedForRemoval ? "border-[#b33a2e] ring-2 ring-[#b33a2e]/15" : "border-[#e7e8eb] hover:border-[#f4c3a3]"}
+                        ${removeMode ? "cursor-default" : "cursor-grab active:cursor-grabbing"}
+                        ${submitting ? "opacity-60" : ""}
+                      `}
+                    >
+                      <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden bg-[#f2f3f5]">
+                        <img
+                          src={`/thumbnail/${slide.id}.png`}
+                          alt={`Slide ${slide.id} thumbnail`}
+                          draggable="false"
+                          className="h-full w-full select-none object-contain"
+                          onError={(event) => { event.currentTarget.style.display = "none"; }}
+                        />
+                        {!removeMode && (
+                          <div className="pointer-events-none absolute left-2 top-2 flex h-7 w-7 items-center justify-center rounded-lg border border-white/80 bg-white/95 text-[#777b82] shadow-sm">
+                            <GripVertical size={17} />
+                          </div>
+                        )}
+                        {removeMode && (
+                          <label className="absolute left-2 top-2 flex cursor-pointer items-center gap-2 rounded-lg border border-white/80 bg-white/95 px-2 py-1.5 text-[11px] font-semibold text-[#b33a2e] shadow-sm">
+                            <input
+                              type="checkbox"
+                              checked={markedForRemoval}
+                              onChange={() => toggleSlideMarkedForRemoval(slide)}
+                              disabled={submitting}
+                              aria-label={`Select slide ${slide.id} for removal`}
+                              className="h-4 w-4 accent-[#b33a2e]"
+                            />
+                            Remove
+                          </label>
+                        )}
+                        <span className="absolute bottom-2 right-2 rounded-md bg-black/70 px-2 py-1 text-[10px] font-semibold text-white">#{index + 1}</span>
+                      </div>
+                      <div className="px-3 py-2.5">
+                        <p className="truncate text-xs font-semibold text-[#303238]">Slide {slide.id}</p>
+                        <p className="mt-1 truncate text-[10px] text-[#8b8f97]">{slide.sectionKey}</p>
+                      </div>
                     </div>
-                    <div className="flex h-10 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-[#e4e6e9] bg-[#f2f3f5] sm:h-12 sm:w-[68px]">
-                      <img
-                        src={`/thumbnail/${slide.id}.png`}
-                        alt={`Slide ${slide.id} thumbnail`}
-                        className="h-full w-full object-contain"
-                        onError={(event) => { event.currentTarget.style.display = "none"; }}
-                      />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-[#303238]">Slide {slide.id}</p>
-                      <p className="mt-0.5 truncate text-xs text-[#8b8f97]">{slide.sectionKey}</p>
-                    </div>
-                    <label className="flex shrink-0 items-center gap-2 text-xs font-medium text-[#55585d]">
-                      <span className="hidden sm:inline">Position</span>
-                      <select
-                        aria-label={`Position for slide ${slide.id}`}
-                        value={index + 1}
-                        onChange={(event) => handlePositionChange(slide.id, slide.sectionKey, event.target.value)}
-                        className="h-9 w-[76px] rounded-lg border border-[#d5d7db] bg-white px-2 text-sm text-[#303238] outline-none focus:border-[#f47a32] focus:ring-2 focus:ring-[#f47a32]/15"
-                      >
-                        {slideOrder.map((_, positionIndex) => (
-                          <option key={positionIndex + 1} value={positionIndex + 1}>
-                            {positionIndex + 1}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <div className="hidden w-7 text-right text-xs font-semibold tabular-nums text-[#a0a3aa] sm:block">
-                      #{index + 1}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
-            <div className="flex flex-col-reverse gap-2 border-t border-[#ececef] bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <div className="flex flex-col-reverse gap-3 border-t border-[#ececef] bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
               <p className="text-[11px] leading-4 text-[#8b8f97]">Slides will be generated in the order shown above.</p>
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
                   disabled={submitting}
-                  onClick={() => setShowAlignPopup(false)}
+                  onClick={() => {
+                    setShowAlignPopup(false);
+                    setRemoveMode(false);
+                    setSlidesMarkedForRemoval([]);
+                  }}
                   className="rounded-lg border border-[#d5d7db] bg-white px-4 py-2.5 text-xs font-semibold text-[#55585d] transition hover:bg-[#f5f6f8] disabled:opacity-60"
                 >
                   Back to selection
                 </button>
                 <button
                   type="button"
-                  disabled={submitting || slideOrder.length === 0}
+                  disabled={submitting || slideOrder.length === 0 || removeMode}
                   onClick={() => {
                     const orderedSlides = {};
                     slideOrder.forEach((slide) => {
@@ -1099,7 +1191,10 @@ return `https://digilateral.com${cleanUrl}`;
                       orderedSlides[slide.sectionKey].push(slide.id);
                     });
                     setSelectedSlides(orderedSlides);
+                    setSelectedSections(Object.keys(orderedSlides));
                     setShowAlignPopup(false);
+                    setRemoveMode(false);
+                    setSlidesMarkedForRemoval([]);
                     handleSubmit({ preventDefault: () => {} }, orderedSlides, slideOrder);
                   }}
                   className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#f47a32] px-4 py-2.5 text-xs font-semibold text-white shadow-[0_2px_8px_rgba(244,122,50,0.18)] transition hover:bg-[#e86d28] disabled:cursor-not-allowed disabled:opacity-60"
@@ -1112,7 +1207,7 @@ return `https://digilateral.com${cleanUrl}`;
           </div>
         </div>
       )}
-
+      
       {/* ==================================================
           SUCCESS POPUP
       ================================================== */}
