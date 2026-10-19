@@ -15,7 +15,7 @@ import {
 import PresentationSettings from "./PresentationSettings";
 import PresentationSections from "./PresentationSections";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+const API_BASE_URL = (import.meta.env.VITE_PRESENTATION_API_URL || "https://digi-ppt.digilateral.com").replace(/\/$/, "");
 
 const inputClass = `
   h-11
@@ -186,7 +186,7 @@ const CreatePresentationForm = () => {
           projectName: projectName.trim(),
         });
 
-        const response = await fetch(`/api/url/check?${params.toString()}`, {
+        const response = await fetch(`${API_BASE_URL}/api/url/check?${params.toString()}`, {
           method: "GET",
         });
 
@@ -448,7 +448,7 @@ return `https://digilateral.com${cleanUrl}`;
         We are NOT changing the generate endpoint.
       */
 
-      const response = await fetch("/api/url/generate", {
+      const response = await fetch(`${API_BASE_URL}/api/url/generate`, {
         method: "POST",
 
         headers: {
