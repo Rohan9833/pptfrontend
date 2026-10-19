@@ -93,6 +93,35 @@ const CreatePresentationForm = () => {
   const [removeMode, setRemoveMode] = useState(false);
   const [slidesMarkedForRemoval, setSlidesMarkedForRemoval] = useState([]);
   const draggedSlideRef = useRef(null);
+  const alignScrollRef = useRef(null);
+  const autoScrollIntervalRef = useRef(null);
+
+  const stopAlignAutoScroll = () => {
+    if (autoScrollIntervalRef.current) {
+      clearInterval(autoScrollIntervalRef.current.id);
+      autoScrollIntervalRef.current = null;
+    }
+  };
+
+  const startAlignAutoScroll = (direction, speed) => {
+    if (autoScrollIntervalRef.current?.direction === direction) {
+      autoScrollIntervalRef.current.speed = speed;
+      return;
+    }
+    stopAlignAutoScroll();
+
+    const scrollState = { direction, speed: speed };
+    scrollState.id = setInterval(() => {
+      const container = alignScrollRef.current;
+      if (!container || draggedSlideRef.current == null) {
+        stopAlignAutoScroll();
+        return;
+      }
+      container.scrollTop += scrollState.direction * scrollState.speed;
+    }, 16);
+
+    autoScrollIntervalRef.current = scrollState;
+  };
 
   /* ==========================================
      SUBMIT STATE
@@ -412,6 +441,7 @@ url: `https://digilateral.com${data.url}`
 
     reorderSlides(fromIndex, insertIndex);
     draggedSlideRef.current = null;
+    stopAlignAutoScroll();
   };
 
   const toggleSlideMarkedForRemoval = (slide) => {
@@ -1151,7 +1181,40 @@ return `https://digilateral.com${cleanUrl}`;
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+            <div
+              ref={alignScrollRef}
+              className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6"
+              onWheel={(event) => {
+                // Keep mouse-wheel scrolling available while a slide is being dragged.
+                if (draggedSlideRef.current == null || !alignScrollRef.current) return;
+                event.preventDefault();
+                alignScrollRef.current.scrollTop += event.deltaY;
+              }}
+              onDragOver={(event) => {
+                if (removeMode || draggedSlideRef.current == null || !alignScrollRef.current) {
+                  stopAlignAutoScroll();
+                  return;
+                }
+
+                // Use a wide edge zone and continuous, proximity-based scrolling so
+                // users can move through long slide lists without precise positioning.
+                const container = alignScrollRef.current;
+                const bounds = container.getBoundingClientRect();
+                const edgeSize = Math.min(90, bounds.height * 0.16);
+                const topDistance = event.clientY - bounds.top;
+                const bottomDistance = bounds.bottom - event.clientY;
+
+                if (topDistance >= 0 && topDistance < edgeSize) {
+                  const intensity = 1 - topDistance / edgeSize;
+                  startAlignAutoScroll(-1, Math.ceil(4 + intensity * 16));
+                } else if (bottomDistance >= 0 && bottomDistance < edgeSize) {
+                  const intensity = 1 - bottomDistance / edgeSize;
+                  startAlignAutoScroll(1, Math.ceil(4 + intensity * 16));
+                } else {
+                  stopAlignAutoScroll();
+                }
+              }}
+            >
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
                 {slideOrder.map((slide, index) => {
                   const slideKey = `${slide.id}-${slide.sectionKey}`;
@@ -1168,7 +1231,7 @@ return `https://digilateral.com${cleanUrl}`;
                         }
                       }}
                       onDrop={(event) => { if (!removeMode) handleSlideDrop(event, index); }}
-                      onDragEnd={() => { draggedSlideRef.current = null; }}
+                      onDragEnd={() => { draggedSlideRef.current = null; stopAlignAutoScroll(); }}
                       className={`group relative overflow-hidden rounded-xl border bg-white transition
                         ${markedForRemoval ? "border-[#b33a2e] ring-2 ring-[#b33a2e]/15" : "border-[#e7e8eb] hover:border-[#f4c3a3]"}
                         ${removeMode ? "cursor-default" : "cursor-grab active:cursor-grabbing"}

@@ -82,7 +82,7 @@ const SECTION_SLIDES = [
   {
     key: "comic-book",
     label: "Comic Book",
-    slideIds: [125, 126, ],
+    slideIds: [125, 126],
   },
   {
     key: "in-clinic-engagement",
