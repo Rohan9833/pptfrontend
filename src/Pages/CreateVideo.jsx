@@ -4,7 +4,7 @@ import ProductDropdown from "../Components/Create-Video/ProductDropdown";
 import PresentationSettings from "../Components/Create-Video/PresentationSettings";
 import Navbar from "../Components/Navbar";
 
-const API_BASE_URL = "/api";
+const API_BASE_URL = (import.meta.env.VITE_PRESENTATION_API_URL || "https://digi-ppt.digilateral.com").replace(/\/$/, "");
 const VIDEO_BASE_URL = import.meta.env.VITE_PUBLIC_BASE_URL || "";
 
 const CreateVideo = () => {
@@ -77,7 +77,7 @@ const CreateVideo = () => {
       setApiResponse(null);
       setCopied(false);
 
-      const response = await fetch(`${API_BASE_URL}/video-products/generate`, {
+      const response = await fetch(`${API_BASE_URL}/api/video-products/generate`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
