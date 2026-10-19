@@ -94,6 +94,30 @@ const CreatePresentationForm = () => {
   const [slidesMarkedForRemoval, setSlidesMarkedForRemoval] = useState([]);
   const draggedSlideRef = useRef(null);
   const alignScrollRef = useRef(null);
+  const autoScrollIntervalRef = useRef(null);
+
+  const stopAlignAutoScroll = () => {
+    if (autoScrollIntervalRef.current) {
+      clearInterval(autoScrollIntervalRef.current);
+      autoScrollIntervalRef.current = null;
+    }
+  };
+
+  const startAlignAutoScroll = (direction, speed) => {
+    if (autoScrollIntervalRef.current?.direction === direction) return;
+    stopAlignAutoScroll();
+
+    const interval = setInterval(() => {
+      const container = alignScrollRef.current;
+      if (!container || draggedSlideRef.current == null) {
+        stopAlignAutoScroll();
+        return;
+      }
+      container.scrollTop += direction * speed;
+    }, 16);
+
+    autoScrollIntervalRef.current = interval;
+  };
 
   /* ==========================================
      SUBMIT STATE
@@ -413,6 +437,7 @@ url: `https://digilateral.com${data.url}`
 
     reorderSlides(fromIndex, insertIndex);
     draggedSlideRef.current = null;
+    stopAlignAutoScroll();
   };
 
   const toggleSlideMarkedForRemoval = (slide) => {
@@ -1156,19 +1181,27 @@ return `https://digilateral.com${cleanUrl}`;
               ref={alignScrollRef}
               className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6"
               onDragOver={(event) => {
-                if (removeMode || draggedSlideRef.current == null || !alignScrollRef.current) return;
+                if (removeMode || draggedSlideRef.current == null || !alignScrollRef.current) {
+                  stopAlignAutoScroll();
+                  return;
+                }
 
-                // Native HTML drag-and-drop does not auto-scroll reliably.
-                // Scroll the thumbnail list when the pointer reaches its top/bottom edge.
+                // Use a wide edge zone and continuous, proximity-based scrolling so
+                // users can move through long slide lists without precise positioning.
                 const container = alignScrollRef.current;
                 const bounds = container.getBoundingClientRect();
-                const edgeSize = 76;
-                const scrollStep = 18;
+                const edgeSize = Math.min(180, bounds.height * 0.3);
+                const topDistance = event.clientY - bounds.top;
+                const bottomDistance = bounds.bottom - event.clientY;
 
-                if (event.clientY < bounds.top + edgeSize) {
-                  container.scrollTop -= scrollStep;
-                } else if (event.clientY > bounds.bottom - edgeSize) {
-                  container.scrollTop += scrollStep;
+                if (topDistance >= 0 && topDistance < edgeSize) {
+                  const intensity = 1 - topDistance / edgeSize;
+                  startAlignAutoScroll(-1, Math.ceil(8 + intensity * 28));
+                } else if (bottomDistance >= 0 && bottomDistance < edgeSize) {
+                  const intensity = 1 - bottomDistance / edgeSize;
+                  startAlignAutoScroll(1, Math.ceil(8 + intensity * 28));
+                } else {
+                  stopAlignAutoScroll();
                 }
               }}
             >
@@ -1188,7 +1221,7 @@ return `https://digilateral.com${cleanUrl}`;
                         }
                       }}
                       onDrop={(event) => { if (!removeMode) handleSlideDrop(event, index); }}
-                      onDragEnd={() => { draggedSlideRef.current = null; }}
+                      onDragEnd={() => { draggedSlideRef.current = null; stopAlignAutoScroll(); }}
                       className={`group relative overflow-hidden rounded-xl border bg-white transition
                         ${markedForRemoval ? "border-[#b33a2e] ring-2 ring-[#b33a2e]/15" : "border-[#e7e8eb] hover:border-[#f4c3a3]"}
                         ${removeMode ? "cursor-default" : "cursor-grab active:cursor-grabbing"}
