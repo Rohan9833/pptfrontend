@@ -88,6 +88,7 @@ const CreatePresentationForm = () => {
 
   const [showAlignPopup, setShowAlignPopup] = useState(false);
   const [slideOrder, setSlideOrder] = useState([]);
+  const [savedSlideOrder, setSavedSlideOrder] = useState([]);
   const [originalSlideOrder, setOriginalSlideOrder] = useState([]);
   const [removeMode, setRemoveMode] = useState(false);
   const [slidesMarkedForRemoval, setSlidesMarkedForRemoval] = useState([]);
@@ -344,14 +345,33 @@ url: `https://digilateral.com${data.url}`
       return;
     }
 
-    const currentOrder = getSlideOrder();
-    if (currentOrder.length === 0) {
+    const selectedOrder = getSlideOrder();
+    if (selectedOrder.length === 0) {
       setError("Please select at least one slide.");
       return;
     }
 
-    setSlideOrder(currentOrder);
-    setOriginalSlideOrder(currentOrder);
+    // Preserve the current manual order for slides that remain selected.
+    // Any newly selected slides are appended in the order they appear in selection.
+    const selectedKeys = new Set(
+      selectedOrder.map((slide) => `${slide.id}-${slide.sectionKey}`)
+    );
+    const mergedOrder = [
+      ...savedSlideOrder.filter((slide) =>
+        selectedKeys.has(`${slide.id}-${slide.sectionKey}`)
+      ),
+      ...selectedOrder.filter((slide) =>
+        !savedSlideOrder.some(
+          (saved) =>
+            saved.id === slide.id && saved.sectionKey === slide.sectionKey
+        )
+      ),
+    ].map((slide, index) => ({ ...slide, position: index + 1 }));
+
+    setSlideOrder(mergedOrder);
+    setOriginalSlideOrder(mergedOrder);
+    setSlidesMarkedForRemoval([]);
+    setRemoveMode(false);
     setShowAlignPopup(true);
   };
 
@@ -564,6 +584,8 @@ return `https://digilateral.com${cleanUrl}`;
       setSelectedSections([]);
 
       setSelectedSlides({});
+
+      setSavedSlideOrder([]);
 
       setExistingLink(null);
 
@@ -1189,13 +1211,29 @@ return `https://digilateral.com${cleanUrl}`;
                   type="button"
                   disabled={submitting}
                   onClick={() => {
+                    // Save the arrangement before returning to the selector so
+                    // opening alignment again doesn't rebuild the order from scratch.
+                    const orderedSlides = {};
+                    slideOrder.forEach((slide) => {
+                      if (!orderedSlides[slide.sectionKey]) {
+                        orderedSlides[slide.sectionKey] = [];
+                      }
+                      orderedSlides[slide.sectionKey].push(slide.id);
+                    });
+                    setSavedSlideOrder(
+                      slideOrder.map((slide, index) => ({ ...slide, position: index + 1 }))
+                    );
+                    setSelectedSlides(orderedSlides);
+                    setSelectedSections(Object.keys(orderedSlides));
+                    setSavedSlideOrder(slideOrder.map((slide, index) => ({ ...slide, position: index + 1 })));
                     setShowAlignPopup(false);
                     setRemoveMode(false);
                     setSlidesMarkedForRemoval([]);
                   }}
-                  className="rounded-lg border border-[#d5d7db] bg-white px-4 py-2.5 text-xs font-semibold text-[#55585d] transition hover:bg-[#f5f6f8] disabled:opacity-60"
+                  className="inline-flex items-center gap-2 rounded-lg border border-[#d5d7db] bg-white px-4 py-2.5 text-xs font-semibold text-[#55585d] transition hover:bg-[#f5f6f8] disabled:opacity-60"
                 >
-                  Back to selection
+                  <FilePlus2 size={14} />
+                  Add Slides
                 </button>
                 <button
                   type="button"
