@@ -375,6 +375,7 @@ url: `https://digilateral.com${data.url}`
     setShowAlignPopup(true);
   };
 
+  // Drop onto a slide to place the dragged slide immediately BEFORE it.
   const reorderSlides = (fromIndex, toIndex) => {
     if (fromIndex == null || toIndex == null || fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return;
 
@@ -382,7 +383,11 @@ url: `https://digilateral.com${data.url}`
       if (fromIndex >= current.length || toIndex >= current.length) return current;
       const next = [...current];
       const [movedSlide] = next.splice(fromIndex, 1);
-      next.splice(toIndex, 0, movedSlide);
+
+      // Removing an earlier item shifts the target one position left.
+      const insertIndex = fromIndex < toIndex ? toIndex - 1 : toIndex;
+      next.splice(insertIndex, 0, movedSlide);
+
       return next.map((slide, index) => ({ ...slide, position: index + 1 }));
     });
   };
