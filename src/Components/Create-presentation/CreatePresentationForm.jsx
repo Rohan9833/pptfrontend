@@ -1220,12 +1220,11 @@ return `https://digilateral.com${cleanUrl}`;
                       }
                       orderedSlides[slide.sectionKey].push(slide.id);
                     });
+                    setSelectedSlides(orderedSlides);
+                    setSelectedSections(Object.keys(orderedSlides));
                     setSavedSlideOrder(
                       slideOrder.map((slide, index) => ({ ...slide, position: index + 1 }))
                     );
-                    setSelectedSlides(orderedSlides);
-                    setSelectedSections(Object.keys(orderedSlides));
-                    setSavedSlideOrder(slideOrder.map((slide, index) => ({ ...slide, position: index + 1 })));
                     setShowAlignPopup(false);
                     setRemoveMode(false);
                     setSlidesMarkedForRemoval([]);
